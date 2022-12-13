@@ -105,6 +105,8 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
                                     'fillOpacity': 0.50,
                                     'weight': 0.1}
 
+    #TODO: Make the colourmap uniform across the years
+
     if census_data[1].data_df is None:
         folium.Choropleth(
             geo_data=cad,

@@ -1,12 +1,50 @@
+import os
 import pickle
 import pandas as pd
 import time
 import interface, census
 from anytree import Node
+import urllib.request
+import zipfile
+import shutil
 
 TREE_SEPARATOR = "⤚"
 NODE_FILENAME = "nodes_list.pickle"
+ZIP_FILENAME = "download.zip"
+TEMP_LOC = '\\temp'
 
+
+def download_csv(url, keep_file, filename, remove_first_line = False):
+    """
+    Downloads a CSV file from statistics canada
+    :param url: The URL of the csv file to download
+    :param keep_file: The file that should be kept from the zip file
+    :param filename: The final filename that the csv should be saved as
+    :param remove_first_line: Should the first line of the CSV be removed? Some CSVs have an additional header text
+    :return: None
+    """
+    # Create a temporary directory
+    loc = os.getcwd() + TEMP_LOC + "\\"
+    os.mkdir(loc)
+
+    #Download the file as a zip file and extract it
+    print("Start Download")
+    urllib.request.urlretrieve(url,loc+ZIP_FILENAME)
+    print("Downloaded")
+    with zipfile.ZipFile(loc+ZIP_FILENAME, 'r') as zip_ref:
+        zip_ref.extractall(loc)
+
+    # Rename/move the file of interest and delete the temporary directory
+    os.rename(loc+keep_file, os.getcwd()+"\\"+filename)
+    print("Done")
+    shutil.rmtree(loc)
+
+    # Sometimes the first line has to be removed due to additional header text
+    if remove_first_line:
+        with open(filename, 'r') as fin:
+            data = fin.read().splitlines(True)
+        with open(filename, 'w') as fout:
+            fout.writelines(data[1:])
 
 def save_csv_parquet(cen):
     """
@@ -135,6 +173,7 @@ def process_data():
     """
     nodes = []
     for i, cen in enumerate(census.censuses):
+        print(cen.year)
         data_df = save_csv_parquet(cen)
 
         characteristic_list = data_df.where(data_df[cen.geo_col] == "Alberta")[
@@ -165,7 +204,15 @@ def load_data():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     print("RUNNING")
-   # process_data()
+
+    # TODO: Check if csvs already downloaded/processed. If so, don't do it again
+    
+    # Download CSVs
+    for cen in census.censuses:
+        download_csv(cen.url, cen.filename_keep, cen.filename_csv, cen.delete_first_line)
+        print(f"Finished download of {cen.year} census data")
+
+    process_data()
     current_time = time.time()
     geo_df = pd.read_csv("GeoData.CSV", encoding="latin-1")
     load_data()
