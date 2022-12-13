@@ -1,12 +1,15 @@
 import os
 import pickle
-import pandas as pd
+import shutil
 import time
-import interface, census
-from anytree import Node
 import urllib.request
 import zipfile
-import shutil
+
+import pandas as pd
+from anytree import Node
+
+import census
+import interface
 
 TREE_SEPARATOR = "⤚"
 NODE_FILENAME = "nodes_list.pickle"
@@ -205,16 +208,21 @@ def load_data():
 if __name__ == '__main__':
     print("RUNNING")
 
-    # TODO: Check if csvs already downloaded/processed. If so, don't do it again
-    
-    # Download CSVs
-    for cen in census.censuses:
-        download_csv(cen.url, cen.filename_keep, cen.filename_csv, cen.delete_first_line)
-        print(f"Finished download of {cen.year} census data")
+    if not os.path.isfile(census.censuses[0].filename_par):
+        # Download CSVs
+        for cen in census.censuses:
+            download_csv(cen.url, cen.filename_keep, cen.filename_csv, cen.delete_first_line)
+            print(f"Finished download of {cen.year} census data")
 
-    process_data()
+        process_data()
+    else:
+        print("Files already processed. No need to redownload files")
+
+
     current_time = time.time()
     geo_df = pd.read_csv("GeoData.CSV", encoding="latin-1")
+    print(f"done loading geo data {time.time() - current_time} seconds")
+
     load_data()
 
     print(f"done loading data {time.time() - current_time} seconds")

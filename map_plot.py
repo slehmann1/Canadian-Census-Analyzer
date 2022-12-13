@@ -40,9 +40,13 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
     census_data[0].data_df = census_data[0].data_df.query(f"{census_data[0].geocode_col} in @cad['CSDUID'] and @strings[0] in {census_data[0].characteristic_col}")
 
     if len(census_data) == 1:
-        for index, datum in census_data[0].query(f"{census_data[0].characteristic_col} in @string_1").iterrows():
-            # There is only one data listed
-            cad.loc[cad["CSDUID"] == datum[datum.geocode_col], function_name] = datum[datum.total_col]
+        # There is only one data listed
+        for index, datum in census_data[0].data_df.query(f"{census_data[0].characteristic_col} in @strings[0]").iterrows():
+            try:
+                cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[0].year)] = float(datum[census_data[0].total_col])
+            except (TypeError, ValueError):
+                # If there is a data quality issue, the data is given as a NAN
+                cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[0].year)] = np.NAN
     else:
         # There are multiple data sources
         cad[function_name] = 0
@@ -82,14 +86,10 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
                     # If there is a data quality issue, the data is given as a NAN
                     cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[i].year)] = np.NAN
 
+        print(f"End code of interest, time = {time.time() - t}")
 
-
-    print(f"End code of interest, time = {time.time() - t}")
     fig, ax = plt.subplots(1, figsize=(10, 6))
 
-    # Create a duplicate copy of the data with outliers removed, prevents the colour bar from being thrown off, but
-    # allows the data to still be inspected
-    cad["Cleansed delta"] = clip_outliers(cad[function_name])
     cad = cad.loc[cad["include"] == True]
 
     m = folium.Map(location=[63, -102], zoom_start=4)
@@ -107,7 +107,7 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
 
     #TODO: Make the colourmap uniform across the years
 
-    if census_data[1].data_df is None:
+    if len(census_data) == 1:
         folium.Choropleth(
             geo_data=cad,
             data=cad,
@@ -139,6 +139,11 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
         )
 
     else:
+        # TODO: Consider clipping more data than just the function
+        # Create a duplicate copy of the data with outliers removed, prevents the colour bar from being thrown off, but
+        # allows the data to still be inspected
+        cad["Cleansed delta"] = clip_outliers(cad[function_name])
+
         folium.Choropleth(
             geo_data=cad,
             data=cad,

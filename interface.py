@@ -51,7 +51,6 @@ def generate_interface():
     _pm_radio_var = tkinter.StringVar(value=PROCESSING_METHODS[0])
 
     for i in range(0, len(PROCESSING_METHODS)):
-        # TODO: Default select one button
         processing_frame.grid_columnconfigure(i, weight=1)
         r = Radiobutton(processing_frame, text=PROCESSING_METHODS[i], value=PROCESSING_METHODS[i], var=_pm_radio_var)
         r.grid(row=0, column=i)
