@@ -1,5 +1,5 @@
 ## Canadian Census Analyzer
-Enables creation of chloropeth maps using data from multiple years of the Canadian Census.
+Enables creation of choropleth maps using data from multiple years of the Canadian Census.
 
 This project is currently a work in progress.
 

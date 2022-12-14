@@ -54,6 +54,7 @@ def save_csv_parquet(cen):
     Loading CSVs are timeconsuming. Read in the CSV and save it as a parquet file which will be quicker to load in the future
     :return: The CSV as a dataframe
     """
+    # TODO: Consider deleting csv post-read. They're pretty big
     df = pd.read_csv(cen.filename_csv, encoding="latin-1", dtype="str")
     df.to_parquet(cen.filename_par, compression=None)
     return df
