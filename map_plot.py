@@ -11,7 +11,7 @@ import numpy as np
 FUNC_LIST = (lambda a: mean_difference(a), lambda a: mean_percent_change(a), lambda a: mean_percent_difference(a))
 ROUND_DECS = 2
 
-def plot_map(function_name, strings, census_data, func = None, type="csd"):
+def plot_map(function_name, strings, census_data, func = None, type="csd", clipped = False):
     """
     Creates a map and displays it using folium
     :param title: The title of the plot
@@ -20,6 +20,7 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
     :param years: A tuple of the years plotted
     :param func: A function to act on data from each of the years
     :param type: The type of map to be displayed: CSD, Provinces, or LCD. See https://www12.statcan.gc.ca/census-recensement/2016/ref/dict/figures/f1_1-eng.cfm
+    :param clipped: Whetehr or not data with the outliers clipped should be displayed
     :return:
     """
 
@@ -82,6 +83,7 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
             for i in range(0, len(census_data)):
                 try:
                     cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[i].year)] = float(census_data[i].data_df.query(f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[census_data[i].total_col])
+
                 except (TypeError, ValueError):
                     # If there is a data quality issue, the data is given as a NAN
                     cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[i].year)] = np.NAN
@@ -108,10 +110,17 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
     #TODO: Make the colourmap uniform across the years
 
     if len(census_data) == 1:
+
+        if clipped:
+            column = str(census_data[0].year) + " clipped"
+            cad[str(census_data[0].year) + " clipped"] = clip_outliers(cad[str(census_data[0].year)])
+        else:
+            column = str(census_data[0].year)
+
         folium.Choropleth(
             geo_data=cad,
             data=cad,
-            columns=["CSDUID", str(census_data[0].year)],
+            columns=["CSDUID", column],
             key_on="feature.properties.CSDUID",
             fill_color='YlGnBu',
             fill_opacity=1,
@@ -139,15 +148,19 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
         )
 
     else:
-        # TODO: Consider clipping more data than just the function
         # Create a duplicate copy of the data with outliers removed, prevents the colour bar from being thrown off, but
         # allows the data to still be inspected
-        cad["Cleansed delta"] = clip_outliers(cad[function_name])
+
+        if clipped:
+            column = function_name + " clipped"
+            cad[function_name + " clipped"] = clip_outliers(cad[function_name])
+        else:
+            column = function_name
 
         folium.Choropleth(
             geo_data=cad,
             data=cad,
-            columns=["CSDUID","Cleansed delta"],
+            columns=["CSDUID",column],
             key_on="feature.properties.CSDUID",
             fill_color='YlGnBu',
             fill_opacity=1,
@@ -163,10 +176,17 @@ def plot_map(function_name, strings, census_data, func = None, type="csd"):
         ).add_to(m)
 
         for i in range(0, len(census_data)):
+
+            if clipped:
+                column = str(census_data[i].year) + " clipped"
+                cad[str(census_data[i].year) + " clipped"] = clip_outliers(cad[function_name])
+            else:
+                column = str(census_data[i].year)
+
             folium.Choropleth(
                 geo_data=cad,
                 data=cad,
-                columns=["CSDUID", str(census_data[i].year)],
+                columns=["CSDUID", column],
                 key_on="feature.properties.CSDUID",
                 fill_color='YlGnBu',
                 fill_opacity=1,

@@ -42,5 +42,6 @@ censuses = [Census(2011, "https://www12.statcan.gc.ca/census-recensement/2011/dp
             Census(2016,"https://www12.statcan.gc.ca/census-recensement/2016/dp-pd/prof/details/download-telecharger/comp/GetFile.cfm?Lang=E&FILETYPE=CSV&GEONO=055", "98-401-X2016055_English_CSV_data.csv", "2016CensusData.CSV", "2016CensusData.parquet", 2,
                    "DIM: Profile of Census Divisions/Census Subdivisions (2247)", "GEO_NAME",
                    "Dim: Sex (3): Member ID: [1]: Total - Sex", "ALT_GEO_CODE"),
+            # TODO: Find equivalent but smaller file
             Census(2021, "https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/details/download-telecharger/comp/GetFile.cfm?Lang=E&FILETYPE=CSV&GEONO=005","98-401-X2021005_English_CSV_data.csv","2021CensusData.CSV", "2021CensusData.parquet", 2, "CHARACTERISTIC_NAME", "GEO_NAME",
                    "C1_COUNT_TOTAL", "ALT_GEO_CODE")]

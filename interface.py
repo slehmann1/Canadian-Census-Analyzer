@@ -23,6 +23,8 @@ def generate_interface():
     """
     global _pm_radio_var
 
+    # TODO: Add clipped ui interface switch
+
     root = tk.Tk()
     root.title(TITLE)
     root.geometry('1400x800')
