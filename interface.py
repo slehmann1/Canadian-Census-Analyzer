@@ -8,9 +8,11 @@ import map_plot
 
 TITLE = "Canadian Census Analyzer"
 PROCESSING_METHODS = ("Mean Difference", "Mean Percent Change", "Mean Percent Difference")
+DATA_CLIP = ("Yes", "No")
 
 _year_checkbuttons = []
 _pm_radio_var = None
+_data_clip_var = None
 _year_selectors = []
 _stackcombos = []
 _root = None
@@ -21,7 +23,7 @@ def generate_interface():
     Create a UI to allow creation of a map
     :return: None
     """
-    global _pm_radio_var
+    global _pm_radio_var, _data_clip_var
 
     # TODO: Add clipped ui interface switch
 
@@ -55,6 +57,18 @@ def generate_interface():
     for i in range(0, len(PROCESSING_METHODS)):
         processing_frame.grid_columnconfigure(i, weight=1)
         r = Radiobutton(processing_frame, text=PROCESSING_METHODS[i], value=PROCESSING_METHODS[i], var=_pm_radio_var)
+        r.grid(row=0, column=i)
+
+    tk.Label(root, text="Should outliers be removed from the data?").pack(fill="x", pady=10)
+
+    outlier_frame = Frame(root)
+    outlier_frame.pack(fill="x", pady=10)
+
+    _data_clip_var = tkinter.StringVar(value=DATA_CLIP[0])
+
+    for i in range(0, len(DATA_CLIP)):
+        outlier_frame.grid_columnconfigure(i, weight=1)
+        r = Radiobutton(outlier_frame, text=DATA_CLIP[i], value=DATA_CLIP[i], var=_data_clip_var)
         r.grid(row=0, column=i)
 
     for i, cen in enumerate(census.censuses):
@@ -101,7 +115,7 @@ def create_plot():
             func = map_plot.FUNC_LIST[i]
             break
 
-    map_plot.plot_map(func_name, strings, cen, func)
+    map_plot.plot_map(func_name, strings, cen, func, clipped = _data_clip_var.get() == DATA_CLIP[0])
 
 
 class StackCombo(tk.Frame):

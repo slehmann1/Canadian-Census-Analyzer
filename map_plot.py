@@ -11,6 +11,11 @@ import numpy as np
 FUNC_LIST = (lambda a: mean_difference(a), lambda a: mean_percent_change(a), lambda a: mean_percent_difference(a))
 ROUND_DECS = 2
 
+# TODO: Make dependant on type that is chosen, enable ability for CDs
+GEO_LEVEL = "CSDUID"
+GEO_NAME = "CSDNAME"
+PROP_NAME = "feature.properties.CSDUID"
+
 
 def plot_map(function_name, strings, census_data, func=None, type="csd", clipped=False):
     """
@@ -21,7 +26,7 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
     :param years: A tuple of the years plotted
     :param func: A function to act on data from each of the years
     :param type: The type of map to be displayed: CSD, Provinces, or LCD. See https://www12.statcan.gc.ca/census-recensement/2016/ref/dict/figures/f1_1-eng.cfm
-    :param clipped: Whetehr or not data with the outliers clipped should be displayed
+    :param clipped: Whether or not data with the outliers clipped should be displayed
     :return:
     """
 
@@ -32,21 +37,21 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
         cad[str(census.year)] = 0
 
     cad["include"] = True
-
+    print(cad.head(0))
     # Simplify first data
     census_data[0].data_df = census_data[0].data_df.query(
-        f"{census_data[0].geocode_col} in @cad['CSDUID'] and @strings[0] in {census_data[0].characteristic_col}")
+        f"{census_data[0].geocode_col} in @cad['{GEO_LEVEL}'] and @strings[0] in `{census_data[0].characteristic_col}`")
 
     if len(census_data) == 1:
         # There is only one data listed
         for index, datum in census_data[0].data_df.query(
-                f"{census_data[0].characteristic_col} in @strings[0]").iterrows():
+                f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows():
             try:
-                cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[0].year)] = float(
+                cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], str(census_data[0].year)] = float(
                     datum[census_data[0].total_col])
             except (TypeError, ValueError):
                 # If there is a data quality issue, the data is given as a NAN
-                cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[0].year)] = np.NAN
+                cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], str(census_data[0].year)] = np.NAN
     else:
         # There are multiple data sources
         cad[function_name] = 0
@@ -79,21 +84,21 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
                         f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[
                                                                census_data[i].total_col]))
 
-                cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], function_name] = func(func_data)
+                cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], function_name] = func(func_data)
             except (TypeError, ValueError):
                 # If there is a data quality issue, the data is given as a NAN
-                cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], function_name] = np.NAN
+                cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], function_name] = np.NAN
 
             for i in range(0, len(census_data)):
                 try:
-                    cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[i].year)] = float(
+                    cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], str(census_data[i].year)] = float(
                         census_data[i].data_df.query(
                             f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[
                             census_data[i].total_col])
 
                 except (TypeError, ValueError):
                     # If there is a data quality issue, the data is given as a NAN
-                    cad.loc[cad["CSDUID"] == datum[census_data[0].geocode_col], str(census_data[i].year)] = np.NAN
+                    cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], str(census_data[i].year)] = np.NAN
 
         print(f"End code of interest, time = {time.time() - t}")
 
@@ -112,10 +117,10 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
         else:
             column = str(census_data[0].year)
 
-        choro = gen_choropleth(cad, "CSDUID", column, "feature.properties.CSDUID", strings[0], census_data[0].year)
+        choro = gen_choropleth(cad, GEO_LEVEL, column, PROP_NAME, strings[0], census_data[0].year)
         choro.add_to(m)
 
-        hover_fields = [str(census_data[0].year), "CSDNAME", "CSDUID"]
+        hover_fields = [str(census_data[0].year), GEO_NAME, GEO_LEVEL]
 
     else:
         # Create a duplicate copy of the data with outliers removed, prevents the colour bar from being thrown off, but
@@ -127,7 +132,7 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
         else:
             column = function_name
 
-        choro = gen_choropleth(cad, "CSDUID", column, "feature.properties.CSDUID", function_name, function_name)
+        choro = gen_choropleth(cad, GEO_LEVEL, column, PROP_NAME, function_name, function_name)
         choro.add_to(m)
 
         for i in range(0, len(census_data)):
@@ -138,7 +143,7 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
             else:
                 column = str(census_data[i].year)
 
-            choro = gen_choropleth(cad, "CSDUID", column, "feature.properties.CSDUID",
+            choro = gen_choropleth(cad, GEO_LEVEL, column, PROP_NAME,
                                    census_data[i].data_df[census_data[i].characteristic_col].values[0],
                                    census_data[i].year)
             choro.add_to(m)
@@ -149,7 +154,7 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
         hover_fields = []
         for i in range(len(census_data)):
             hover_fields.append(str(census_data[i].year))
-        hover_fields.extend([function_name, "CSDNAME", "CSDUID"])
+        hover_fields.extend([function_name, GEO_NAME, GEO_LEVEL])
 
     hover_bubble = gen_hover_bubble(cad, hover_fields)
     m.add_child(hover_bubble)
