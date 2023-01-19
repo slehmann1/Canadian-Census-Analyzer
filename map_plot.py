@@ -80,7 +80,7 @@ def plot_map(function_name, strings, census_data, func=None, type="Census Subdiv
         else:
             column = function_name
 
-        choro = gen_choropleth(cad, geo_level, column, prop_name, function_name, function_name)
+        choro = gen_choropleth(cad, geo_level, column, prop_name, function_name, function_name, show=False)
         choro.add_to(m)
 
         columns = []
@@ -95,9 +95,10 @@ def plot_map(function_name, strings, census_data, func=None, type="Census Subdiv
         thresholds = det_thresholds(cad, columns)
 
         for i, column in enumerate(columns):
+            # Create the choropleth, where only the first year is shown
             choro = gen_choropleth(cad, geo_level, column, prop_name,
                                    census_data[i].data_df[census_data[i].characteristic_col].values[0],
-                                   census_data[i].year, thresholds)
+                                   census_data[i].year, thresholds, show=i == 0)
             choro.add_to(m)
 
         lc = gen_layer_controller()
@@ -257,14 +258,17 @@ def output_map(m):
     webbrowser.open("map.html")
 
 
-def gen_choropleth(data, column_1, column_2, key_on, legend_name, name, thresholds=None):
+def gen_choropleth(data, column_1, column_2, key_on, legend_name, name, thresholds=None, show=True):
     """
     Creates a folium choropleth with the appropriate formatting
+    :param show: Should the choropleth be shown by default?
     :param data: The data to be displayed
     :param column_1: The column used as the key column
     :param column_2: The data column
+    :param key_on:
     :param legend_name: The name to be applied to the legend
     :param name: The name for the layer
+
     :return: A folium.choropleth object
     """
     if thresholds is not None:
@@ -281,7 +285,7 @@ def gen_choropleth(data, column_1, column_2, key_on, legend_name, name, threshol
             Highlight=True,
             line_color="#0000",
             name=name,
-            show=True,
+            show=show,
             overlay=True,
             nan_fill_color="White",
             threshold_scale=thresholds
@@ -300,7 +304,7 @@ def gen_choropleth(data, column_1, column_2, key_on, legend_name, name, threshol
             Highlight=True,
             line_color="#0000",
             name=name,
-            show=True,
+            show=show,
             overlay=True,
             nan_fill_color="White"
         )

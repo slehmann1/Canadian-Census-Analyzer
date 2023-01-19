@@ -34,7 +34,7 @@ class Census:
 
     def set_char_tree(self, char_tree):
         self.char_tree = char_tree
-        
+
 
 censuses = [Census(2011,
                    "https://www12.statcan.gc.ca/census-recensement/2011/dp-pd/prof/details/download-telecharger/comprehensive/comp_download.cfm?CTLG=98-316-XWE2011001&FMT=CSV301&Lang=E&Tab=1&Geo1=PR&Code1=01&Geo2=PR&Code2=01&Data=Count&SearchText=&SearchType=Begins&SearchPR=01&B1=All&Custom=&TABID=1",
