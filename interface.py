@@ -1,3 +1,4 @@
+import sys
 import tkinter
 import tkinter as tk
 from tkinter import ttk
@@ -24,8 +25,6 @@ def generate_interface():
     :return: None
     """
     global _pm_radio_var, _data_clip_var
-
-    # TODO: Add clipped ui interface switch
 
     root = tk.Tk()
     root.title(TITLE)
@@ -79,6 +78,7 @@ def generate_interface():
 
     Button(root, text="Create Plot", command=create_plot).pack(fill="x", side="bottom")
 
+    root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
 
 
@@ -116,6 +116,15 @@ def create_plot():
             break
 
     map_plot.plot_map(func_name, strings, cen, func, clipped = _data_clip_var.get() == DATA_CLIP[0])
+
+
+def on_closing():
+    """
+    Handles the exit button being pressed
+    :return:
+    """
+    print("End of program")
+    sys.exit()
 
 
 class StackCombo(tk.Frame):

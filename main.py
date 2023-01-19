@@ -207,7 +207,7 @@ def load_data():
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print("RUNNING")
+    print("Program Start")
 
     if not os.path.isfile(census.censuses[0].filename_par):
         # Download CSVs
@@ -222,10 +222,10 @@ if __name__ == '__main__':
 
     current_time = time.time()
     geo_df = pd.read_csv("GeoData.CSV", encoding="latin-1")
-    print(f"done loading geo data {time.time() - current_time} seconds")
+    print(f"Done loading geo data in {time.time() - current_time} seconds")
 
     load_data()
 
-    print(f"done loading data {time.time() - current_time} seconds")
+    print(f"Done loading data in {time.time() - current_time} seconds")
 
     interface.generate_interface()

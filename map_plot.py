@@ -1,8 +1,8 @@
+import math
 import webbrowser
 import folium
 import geopandas as gpd
 import jinja2
-import matplotlib.pyplot as plt
 import time
 import numpy as np
 
@@ -10,6 +10,7 @@ import numpy as np
 
 FUNC_LIST = (lambda a: mean_difference(a), lambda a: mean_percent_change(a), lambda a: mean_percent_difference(a))
 ROUND_DECS = 2
+THRESHOLD_LEVELS = 30
 
 # TODO: Make dependant on type that is chosen, enable ability for CDs
 GEO_LEVEL = "CSDUID"
@@ -36,8 +37,6 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
     for census in census_data:
         cad[str(census.year)] = 0
 
-    cad["include"] = True
-    print(cad.head(0))
     # Simplify first data
     census_data[0].data_df = census_data[0].data_df.query(
         f"{census_data[0].geocode_col} in @cad['{GEO_LEVEL}'] and @strings[0] in `{census_data[0].characteristic_col}`")
@@ -67,12 +66,12 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
                 f"(`{census_data[i].characteristic_col}` in @strings[@i]) and ({census_data[i].geocode_col} in @x)")
 
         total = sum(
-            1 for _ in census_data[0].data_df.query(f"{census_data[0].characteristic_col} in @strings[0]").iterrows())
+            1 for _ in census_data[0].data_df.query(f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows())
         t = time.time()
         print(f"Start code of interest")
         count = 0
         for index, datum in census_data[0].data_df.query(
-                f"{census_data[0].characteristic_col} in @strings[0]").iterrows():
+                f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows():
             count += 1
             print(f"{count} of {total} data rows")
 
@@ -102,18 +101,13 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
 
         print(f"End code of interest, time = {time.time() - t}")
 
-    fig, ax = plt.subplots(1, figsize=(10, 6))
-
-    cad = cad.loc[cad["include"] == True]
-
     m = folium.Map(location=[63, -102], zoom_start=4)
-
-    # TODO: Make the colourmap uniform across the years
 
     if len(census_data) == 1:
         if clipped:
             column = str(census_data[0].year) + " clipped"
             cad[str(census_data[0].year) + " clipped"] = clip_outliers(cad[str(census_data[0].year)])
+
         else:
             column = str(census_data[0].year)
 
@@ -135,17 +129,24 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
         choro = gen_choropleth(cad, GEO_LEVEL, column, PROP_NAME, function_name, function_name)
         choro.add_to(m)
 
+        columns = []
+
         for i in range(0, len(census_data)):
 
             if clipped:
-                column = str(census_data[i].year) + " clipped"
-                cad[str(census_data[i].year) + " clipped"] = clip_outliers(cad[function_name])
+                columns.append(str(census_data[i].year) + " clipped")
+                cad[str(census_data[i].year) + " clipped"] = clip_outliers(cad[str(census_data[i].year)])
             else:
-                column = str(census_data[i].year)
+                columns.append(str(census_data[i].year))
 
+        minimum, maximum = get_range(cad, columns)
+        step_size = (maximum - minimum) / THRESHOLD_LEVELS
+        thresholds = np.arange(minimum, maximum+ step_size, step_size)
+
+        for i, column in enumerate(columns):
             choro = gen_choropleth(cad, GEO_LEVEL, column, PROP_NAME,
                                    census_data[i].data_df[census_data[i].characteristic_col].values[0],
-                                   census_data[i].year)
+                                   census_data[i].year, thresholds)
             choro.add_to(m)
 
         lc = gen_layer_controller()
@@ -161,6 +162,24 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
     m.keep_in_front(hover_bubble)
 
     output_map(m)
+
+
+def get_range(df, columns):
+    """
+    Determines the range of values seen in multiple columns of a pandas dataframe
+    :param df: The dataframe
+    :param columns: A string value of the columns to be considered
+    :return:
+    """
+
+    minimum, maximum = math.inf, -math.inf
+    for column in columns:
+        if df[column].max() > maximum:
+            maximum = df[column].max()
+        if df[column].min() < minimum:
+            minimum = df[column].min()
+
+    return minimum, maximum
 
 
 def get_cad_file(type):
@@ -189,7 +208,7 @@ def output_map(m):
     webbrowser.open("map.html")
 
 
-def gen_choropleth(data, column_1, column_2, key_on, legend_name, name):
+def gen_choropleth(data, column_1, column_2, key_on, legend_name, name, thresholds = None):
     """
     Creates a folium choropleth with the appropriate formatting
     :param data: The data to be displayed
@@ -199,23 +218,43 @@ def gen_choropleth(data, column_1, column_2, key_on, legend_name, name):
     :param name: The name for the layer
     :return: A folium.choropleth object
     """
-    return folium.Choropleth(
-        geo_data=data,
-        data=data,
-        columns=[column_1, column_2],
-        key_on=key_on,
-        fill_color='YlGnBu',
-        fill_opacity=1,
-        line_opacity=0.2,
-        legend_name=legend_name,
-        smooth_factor=0,
-        Highlight=True,
-        line_color="#0000",
-        name=name,
-        show=True,
-        overlay=True,
-        nan_fill_color="White"
-    )
+    if thresholds is not None:
+        return folium.Choropleth(
+            geo_data=data,
+            data=data,
+            columns=[column_1, column_2],
+            key_on=key_on,
+            fill_color='YlGnBu',
+            fill_opacity=1,
+            line_opacity=0.2,
+            legend_name=legend_name,
+            smooth_factor=0,
+            Highlight=True,
+            line_color="#0000",
+            name=name,
+            show=True,
+            overlay=True,
+            nan_fill_color="White",
+            threshold_scale=thresholds
+        )
+    else:
+        return folium.Choropleth(
+            geo_data=data,
+            data=data,
+            columns=[column_1, column_2],
+            key_on=key_on,
+            fill_color='YlGnBu',
+            fill_opacity=1,
+            line_opacity=0.2,
+            legend_name=legend_name,
+            smooth_factor=0,
+            Highlight=True,
+            line_color="#0000",
+            name=name,
+            show=True,
+            overlay=True,
+            nan_fill_color="White"
+        )
 
 
 def gen_layer_controller():
