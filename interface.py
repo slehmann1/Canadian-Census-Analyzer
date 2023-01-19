@@ -8,9 +8,9 @@ import main
 import map_plot
 
 TITLE = "Canadian Census Analyzer"
-PROCESSING_METHODS = ("Mean Difference", "Mean Percent Change", "Mean Percent Difference")
-GEOGRAPHY = ("Census Subdivisions", "Census Divisions", "Provinces")
-DATA_CLIP = ("Yes", "No")
+_PROCESSING_METHODS = ("Mean Difference", "Mean Percent Change", "Mean Percent Difference")
+_GEOGRAPHY = ("Census Subdivisions", "Census Divisions", "Provinces")
+_DATA_CLIP = ("Yes", "No")
 
 _year_checkbuttons = []
 _pm_radio_var = None
@@ -38,6 +38,7 @@ def generate_interface():
     root.tk.call("source", "sun-valley.tcl")
     root.tk.call("set_theme", "dark")
 
+    # Year selection
     tk.Label(root, text="Select the censuses to analyze data for:").pack(fill="x", pady=10)
     years_frame = Frame(root)
     years_frame.pack(fill="x", pady=10)
@@ -48,42 +49,46 @@ def generate_interface():
         c = Checkbutton(years_frame, text=str(cen.year), var=_year_checkbuttons[i], command=year_check_change)
         c.grid(row=0, column=i)
 
+    # Geography Selection
     tk.Label(root, text="What level of geography should be displayed?").pack(fill="x", pady=10)
 
     geo_frame = Frame(root)
     geo_frame.pack(fill="x", pady=10)
 
-    _geo_var = tkinter.StringVar(value=GEOGRAPHY[0])
+    _geo_var = tkinter.StringVar(value=_GEOGRAPHY[0])
 
-    for i in range(0, len(GEOGRAPHY)):
+    for i in range(0, len(_GEOGRAPHY)):
         geo_frame.grid_columnconfigure(i, weight=1)
-        r = Radiobutton(geo_frame, text=GEOGRAPHY[i], value=GEOGRAPHY[i], var=_geo_var)
+        r = Radiobutton(geo_frame, text=_GEOGRAPHY[i], value=_GEOGRAPHY[i], var=_geo_var)
         r.grid(row=0, column=i)
 
+    # Processing Method
     tk.Label(root, text="Select the way to process data from multiple years:").pack(fill="x", pady=10)
 
     processing_frame = Frame(root)
     processing_frame.pack(fill="x", pady=10)
 
-    _pm_radio_var = tkinter.StringVar(value=PROCESSING_METHODS[0])
+    _pm_radio_var = tkinter.StringVar(value=_PROCESSING_METHODS[0])
 
-    for i in range(0, len(PROCESSING_METHODS)):
+    for i in range(0, len(_PROCESSING_METHODS)):
         processing_frame.grid_columnconfigure(i, weight=1)
-        r = Radiobutton(processing_frame, text=PROCESSING_METHODS[i], value=PROCESSING_METHODS[i], var=_pm_radio_var)
+        r = Radiobutton(processing_frame, text=_PROCESSING_METHODS[i], value=_PROCESSING_METHODS[i], var=_pm_radio_var)
         r.grid(row=0, column=i)
 
+    # Data Clipping
     tk.Label(root, text="Should outliers be removed from the data?").pack(fill="x", pady=10)
 
     outlier_frame = Frame(root)
     outlier_frame.pack(fill="x", pady=10)
 
-    _data_clip_var = tkinter.StringVar(value=DATA_CLIP[0])
+    _data_clip_var = tkinter.StringVar(value=_DATA_CLIP[0])
 
-    for i in range(0, len(DATA_CLIP)):
+    for i in range(0, len(_DATA_CLIP)):
         outlier_frame.grid_columnconfigure(i, weight=1)
-        r = Radiobutton(outlier_frame, text=DATA_CLIP[i], value=DATA_CLIP[i], var=_data_clip_var)
+        r = Radiobutton(outlier_frame, text=_DATA_CLIP[i], value=_DATA_CLIP[i], var=_data_clip_var)
         r.grid(row=0, column=i)
 
+    # Value Selection
     for i, cen in enumerate(census.censuses):
         _year_selectors.append(Frame(root))
         tk.Label(_year_selectors[i], text=f"Select a value of interest from year {cen.year}:").pack(fill="x", pady=10)
@@ -124,12 +129,12 @@ def create_plot():
 
     func_name = _pm_radio_var.get()
 
-    for i, proc_method in enumerate(PROCESSING_METHODS):
+    for i, proc_method in enumerate(_PROCESSING_METHODS):
         if func_name == proc_method:
             func = map_plot.FUNC_LIST[i]
             break
 
-    map_plot.plot_map(func_name, strings, cen, func, clipped=_data_clip_var.get() == DATA_CLIP[0], type=_geo_var.get())
+    map_plot.plot_map(func_name, strings, cen, func, clipped=_data_clip_var.get() == _DATA_CLIP[0], type=_geo_var.get())
 
 
 def on_closing():
@@ -146,7 +151,7 @@ class StackCombo(tk.Frame):
     An extension of a tkinter ComboBox, but supports nesting, thereby created stacked combo boxes.
     """
     # The number of spaces that each child is indented by
-    NUM_SPACES = 5
+    _NUM_SPACES = 5
 
     def __init__(self, master, node, master_combo=None, **kwargs):
         tk.Frame.__init__(self, master, **kwargs)
@@ -157,7 +162,7 @@ class StackCombo(tk.Frame):
 
         if master_combo is not None:
             self.indent_level = master_combo.get_indent_level() + 1
-            text = " " * (self.indent_level - 1) * StackCombo.NUM_SPACES + "↳"
+            text = " " * (self.indent_level - 1) * StackCombo._NUM_SPACES + "↳"
             Label(self, text=text).pack(side="left", padx=10)
         else:
             self.indent_level = 0

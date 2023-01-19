@@ -3,23 +3,22 @@ import webbrowser
 import folium
 import geopandas as gpd
 import jinja2
-import time
 import numpy as np
 
 # Source for map data: https://www12.statcan.gc.ca/census-recensement/alternative_alternatif.cfm?l=eng&dispext=zip&teng=lcsd000b21a_e.zip&k=%20%20%20152326&loc=//www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcsd000b21a_e.zip
 
 FUNC_LIST = (lambda a: mean_difference(a), lambda a: mean_percent_change(a), lambda a: mean_percent_difference(a))
-ROUND_DECS = 2
-THRESHOLD_LEVELS = 30
+_ROUND_DECS = 2
+_THRESHOLD_LEVELS = 30
+_START_LOCATION = [63, -102]
 
 
 def plot_map(function_name, strings, census_data, func=None, type="Census Subdivisions", clipped=False):
     """
     Creates a map and displays it using folium
-    :param title: The title of the plot
-    :param data: A tuple of data to be displayed
+    :param census_data: A list of census objects
+    :param function_name: The name of the function that operates on data from multiple years
     :param strings: A tuple of the characteristic names to be plotted
-    :param years: A tuple of the years plotted
     :param func: A function to act on data from each of the years
     :param type: The type of map to be displayed: CSD, Provinces, or LCD. See https://www12.statcan.gc.ca/census-recensement/2016/ref/dict/figures/f1_1-eng.cfm
     :param clipped: Whether or not data with the outliers clipped should be displayed
@@ -36,8 +35,7 @@ def plot_map(function_name, strings, census_data, func=None, type="Census Subdiv
     census_data[0].data_df = census_data[0].data_df.query(
         f"{census_data[0].geocode_col} in @cad['{geo_level}'] and @strings[0] in `{census_data[0].characteristic_col}`")
 
-    if len(census_data) == 1:
-        # There is only one data listed
+    if len(census_data) == 1:  # There is only one year
         for index, datum in census_data[0].data_df.query(
                 f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows():
             try:
@@ -46,8 +44,7 @@ def plot_map(function_name, strings, census_data, func=None, type="Census Subdiv
             except (TypeError, ValueError):
                 # If there is a data quality issue, the data is given as a NAN
                 cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[0].year)] = np.NAN
-    else:
-        # There are multiple data sources
+    else:  # There are multiple data sources
         cad[function_name] = 0
 
         # Simplify the data by eliminating rows that are not needed
@@ -60,43 +57,9 @@ def plot_map(function_name, strings, census_data, func=None, type="Census Subdiv
             census_data[i].data_df = census_data[i].data_df.query(
                 f"(`{census_data[i].characteristic_col}` in @strings[@i]) and ({census_data[i].geocode_col} in @x)")
 
-        total = sum(
-            1 for _ in census_data[0].data_df.query(f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows())
-        t = time.time()
-        print(f"Start code of interest")
-        count = 0
-        for index, datum in census_data[0].data_df.query(
-                f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows():
-            count += 1
-            print(f"{count} of {total} data rows")
+        proc_rows(census_data, function_name, func, cad, geo_level, strings)
 
-            try:
-                # Build a list of
-                func_data = np.array([float(datum[census_data[0].total_col])])
-                for i in range(1, len(census_data)):
-                    func_data = np.append(func_data, float(census_data[i].data_df.query(
-                        f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[
-                                                               census_data[i].total_col]))
-
-                cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], function_name] = func(func_data)
-            except (TypeError, ValueError):
-                # If there is a data quality issue, the data is given as a NAN
-                cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], function_name] = np.NAN
-
-            for i in range(0, len(census_data)):
-                try:
-                    cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[i].year)] = float(
-                        census_data[i].data_df.query(
-                            f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[
-                            census_data[i].total_col])
-
-                except (TypeError, ValueError):
-                    # If there is a data quality issue, the data is given as a NAN
-                    cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[i].year)] = np.NAN
-
-        print(f"End code of interest, time = {time.time() - t}")
-
-    m = folium.Map(location=[63, -102], zoom_start=4)
+    m = folium.Map(location=_START_LOCATION, zoom_start=4)
 
     if len(census_data) == 1:
         if clipped:
@@ -112,12 +75,8 @@ def plot_map(function_name, strings, census_data, func=None, type="Census Subdiv
         hover_fields = [str(census_data[0].year), geo_name, geo_level]
 
     else:
-        # Create a duplicate copy of the data with outliers removed, prevents the colour bar from being thrown off, but
-        # allows the data to still be inspected
-
         if clipped:
-            column = function_name + " clipped"
-            cad[function_name + " clipped"] = clip_outliers(cad[function_name])
+            column = clip_df_column(function_name, cad)
         else:
             column = function_name
 
@@ -129,14 +88,11 @@ def plot_map(function_name, strings, census_data, func=None, type="Census Subdiv
         for i in range(0, len(census_data)):
 
             if clipped:
-                columns.append(str(census_data[i].year) + " clipped")
-                cad[str(census_data[i].year) + " clipped"] = clip_outliers(cad[str(census_data[i].year)])
+                columns.append(clip_df_column(str(census_data[i].year), cad))
             else:
                 columns.append(str(census_data[i].year))
 
-        minimum, maximum = get_range(cad, columns)
-        step_size = (maximum - minimum) / THRESHOLD_LEVELS
-        thresholds = np.arange(minimum, maximum + step_size, step_size)
+        thresholds = det_thresholds(cad, columns)
 
         for i, column in enumerate(columns):
             choro = gen_choropleth(cad, geo_level, column, prop_name,
@@ -157,6 +113,77 @@ def plot_map(function_name, strings, census_data, func=None, type="Census Subdiv
     m.keep_in_front(hover_bubble)
 
     output_map(m)
+
+
+def clip_df_column(unclipped_column, df):
+    """
+    Adds a column of clipped values to a dataframe
+    :param unclipped_column: The name of the column containing unclipped data
+    :param df: The dataframe to modify
+    :return: The name of the column added to the dataframe
+    """
+    column = unclipped_column + " clipped"
+    df[unclipped_column + " clipped"] = clip_outliers(df[unclipped_column])
+    return column
+
+
+def proc_rows(census_data, function_name, func, cad, geo_level, strings):
+    """
+    Processes rows of a cad dataframe, populating a column for both annual data and function data
+    :param census_data: A list of census objects
+    :param function_name: The name of the function used to operate on multiple years
+    :param func: The function that operates on data from multiple years
+    :param cad: The pandas dataframe containing data to be modified
+    :param geo_level: The geographic level used
+    :param strings: A tuple of the characteristic names to be plotted
+    :return: None. The data within the cad object is modified
+    """
+    total = sum(
+        1 for _ in census_data[0].data_df.query(f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows())
+    count = 0
+
+    for index, datum in census_data[0].data_df.query(
+            f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows():
+        count += 1
+        print(f"Currently processing {count} of {total} data rows")
+
+        # Populate function data
+        try:
+            func_data = np.array([float(datum[census_data[0].total_col])])
+            for i in range(1, len(census_data)):
+                func_data = np.append(func_data, float(census_data[i].data_df.query(
+                    f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[
+                                                           census_data[i].total_col]))
+
+            cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], function_name] = func(func_data)
+        except (TypeError, ValueError):
+            # If there is a data quality issue, the data is given as a NAN
+            cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], function_name] = np.NAN
+
+        # Populate annual data
+        for i in range(0, len(census_data)):
+            try:
+                cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[i].year)] = float(
+                    census_data[i].data_df.query(
+                        f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[
+                        census_data[i].total_col])
+
+            except (TypeError, ValueError):
+                # If there is a data quality issue, the data is given as a NAN
+                cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[i].year)] = np.NAN
+
+
+def det_thresholds(cad, columns):
+    """
+    Returns a np array of a threshold scale that can be used in a Folium legend
+    :param cad: The cad data
+    :param columns: A list of strings corresponding to columns in the cad data
+    :return: Threshold scale in the form of an np array
+    """
+    minimum, maximum = get_range(cad, columns)
+    step_size = (maximum - minimum) / _THRESHOLD_LEVELS
+    thresholds = np.arange(minimum, maximum + step_size, step_size)
+    return thresholds
 
 
 def get_range(df, columns):
@@ -317,16 +344,19 @@ def gen_hover_bubble(data, hover_fields):
     :param hover_fields: The fields of the data that should be displayed within the hover bubble
     :return: A GeoJson object representing a hover bubble
     """
-    # Add hover functionality.
-    style_function = lambda x: {'fillColor': '#ffffff',
-                                'color': '#000000',
-                                'fillOpacity': 0.1,
-                                'weight': 0.1}
 
-    highlight_function = lambda x: {'fillColor': '#000000',
-                                    'color': '#000000',
-                                    'fillOpacity': 0.50,
-                                    'weight': 0.1}
+    # Add hover functionality.
+    def style_function(_):
+        return {'fillColor': '#ffffff',
+                'color': '#000000',
+                'fillOpacity': 0.1,
+                'weight': 0.1}
+
+    def highlight_function(_):
+        return {'fillColor': '#000000',
+                'color': '#000000',
+                'fillOpacity': 0.50,
+                'weight': 0.1}
 
     hover_bubble = folium.features.GeoJson(
         data=data,
@@ -336,7 +366,7 @@ def gen_hover_bubble(data, hover_fields):
         tooltip=folium.features.GeoJsonTooltip(
             fields=hover_fields,
             aliases=hover_fields,
-            style=("background-color: white; color: #333333; font-family: arial; font-size: 12px; padding: 10px;")
+            style="background-color: white; color: #333333; font-family: arial; font-size: 12px; padding: 10px;"
         )
     )
     return hover_bubble
@@ -348,7 +378,7 @@ def mean_difference(data):
     for i in range(1, len(data)):
         diffs.append(data[i] - data[i - 1])
 
-    return np.round(np.mean(diffs), ROUND_DECS)
+    return np.round(np.mean(diffs), _ROUND_DECS)
 
 
 def mean_percent_difference(data):
@@ -359,7 +389,7 @@ def mean_percent_difference(data):
         else:
             diffs.append((data[i] - data[i - 1]) / (np.mean((data[i], data[i - 1]))) * 100)
 
-    return np.round(np.mean(diffs), ROUND_DECS)
+    return np.round(np.mean(diffs), _ROUND_DECS)
 
 
 def mean_percent_change(data):
@@ -370,7 +400,7 @@ def mean_percent_change(data):
         else:
             diffs.append((data[i] - data[i - 1]) / (np.abs(data[i - 1])) * 100)
 
-    return np.round(np.mean(diffs), ROUND_DECS)
+    return np.round(np.mean(diffs), _ROUND_DECS)
 
 
 def clip_outliers(df):

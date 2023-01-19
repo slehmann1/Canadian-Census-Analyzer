@@ -12,12 +12,12 @@ import census
 import interface
 
 TREE_SEPARATOR = "⤚"
-NODE_FILENAME = "nodes_list.pickle"
-ZIP_FILENAME = "download.zip"
-TEMP_LOC = '\\temp'
+_NODE_FILENAME = "nodes_list.pickle"
+_ZIP_FILENAME = "download.zip"
+_TEMP_LOC = '\\temp'
 
 
-def download_csv(url, keep_file, filename, remove_first_line = False):
+def download_csv(url, keep_file, filename, remove_first_line=False):
     """
     Downloads a CSV file from statistics canada
     :param url: The URL of the csv file to download
@@ -27,19 +27,18 @@ def download_csv(url, keep_file, filename, remove_first_line = False):
     :return: None
     """
     # Create a temporary directory
-    loc = os.getcwd() + TEMP_LOC + "\\"
+    loc = os.getcwd() + _TEMP_LOC + "\\"
     os.mkdir(loc)
 
-    #Download the file as a zip file and extract it
-    print("Start Download")
-    urllib.request.urlretrieve(url,loc+ZIP_FILENAME)
-    print("Downloaded")
-    with zipfile.ZipFile(loc+ZIP_FILENAME, 'r') as zip_ref:
+    # Download the file as a zip file and extract it
+    print(f"Start File Download At This URL: {url}")
+    urllib.request.urlretrieve(url, loc + _ZIP_FILENAME)
+    print("Download Complete")
+    with zipfile.ZipFile(loc + _ZIP_FILENAME, 'r') as zip_ref:
         zip_ref.extractall(loc)
 
     # Rename/move the file of interest and delete the temporary directory
-    os.rename(loc+keep_file, os.getcwd()+"\\"+filename)
-    print("Done")
+    os.rename(loc + keep_file, os.getcwd() + "\\" + filename)
     shutil.rmtree(loc)
 
     # Sometimes the first line has to be removed due to additional header text
@@ -49,12 +48,12 @@ def download_csv(url, keep_file, filename, remove_first_line = False):
         with open(filename, 'w') as fout:
             fout.writelines(data[1:])
 
+
 def save_csv_parquet(cen):
     """
     Loading CSVs are timeconsuming. Read in the CSV and save it as a parquet file which will be quicker to load in the future
     :return: The CSV as a dataframe
     """
-    # TODO: Consider deleting csv post-read. They're pretty big
     df = pd.read_csv(cen.filename_csv, encoding="latin-1", dtype="str")
     df.to_parquet(cen.filename_par, compression=None)
     return df
@@ -75,7 +74,7 @@ def build_geographical_tree(geo_df):
     prior_province = None
     prior_census = None
 
-    for _index, geo in geo_df.iterrows():
+    for _, geo in geo_df.iterrows():
         if len(geo["SGC"]) == 2:
             # This is a province
             prior_province = Node(geo["Geo Name"], canada)
@@ -117,8 +116,7 @@ def build_characteristic_tree(characteristic_list, leading_spaces=2):
     # Loop through all characteristics and build a tree
     for i, characteristic in enumerate(characteristic_list):
 
-        print(f"Characteristic {i} of {total}")
-        preprior = characteristic
+        print(f"Progress Building Characteristic Tree: {i} of {total}")
         characteristic = characteristic.replace(u'\xa0', u' ')
         white_space_chars = int((len(characteristic) - len(characteristic.lstrip())) / leading_spaces)
         characteristic = characteristic.lstrip()
@@ -150,9 +148,8 @@ def build_characteristic_tree(characteristic_list, leading_spaces=2):
 
         else:
             # Has less indentation than the prior node, decrement the tree
-            backup = prior_prefix
             # Loop through the number of decrements
-            for i in range(int(prior_whitespace - white_space_chars)):
+            for _ in range(int(prior_whitespace - white_space_chars)):
                 prior_prefix = TREE_SEPARATOR.join(prior_prefix.split(TREE_SEPARATOR)[0:-2]) + TREE_SEPARATOR
                 prior = prior.parent
 
@@ -186,7 +183,7 @@ def process_data():
         nodes.append(build_characteristic_tree(characteristic_list, cen.leading_spaces))
 
     # Save the nodelist to a pickle
-    file = open(NODE_FILENAME, "ab")
+    file = open(_NODE_FILENAME, "ab")
     pickle.dump(nodes, file)
     file.close()
 
@@ -197,7 +194,7 @@ def load_data():
     :return:
     """
 
-    file = open(NODE_FILENAME, "rb")
+    file = open(_NODE_FILENAME, "rb")
     nodes = pickle.load(file)
 
     for i, cen in enumerate(census.censuses):
@@ -217,15 +214,14 @@ if __name__ == '__main__':
 
         process_data()
     else:
-        print("Files already processed. No need to redownload files")
-
+        print("Files already processed. No need to download files")
 
     current_time = time.time()
     geo_df = pd.read_csv("GeoData.CSV", encoding="latin-1")
     print(f"Done loading geo data in {time.time() - current_time} seconds")
 
+    current_time = time.time()
     load_data()
-
     print(f"Done loading data in {time.time() - current_time} seconds")
 
     interface.generate_interface()
