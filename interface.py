@@ -9,11 +9,13 @@ import map_plot
 
 TITLE = "Canadian Census Analyzer"
 PROCESSING_METHODS = ("Mean Difference", "Mean Percent Change", "Mean Percent Difference")
+GEOGRAPHY = ("Census Subdivisions", "Census Divisions", "Provinces")
 DATA_CLIP = ("Yes", "No")
 
 _year_checkbuttons = []
 _pm_radio_var = None
 _data_clip_var = None
+_geo_var = None
 _year_selectors = []
 _stackcombos = []
 _root = None
@@ -24,7 +26,7 @@ def generate_interface():
     Create a UI to allow creation of a map
     :return: None
     """
-    global _pm_radio_var, _data_clip_var
+    global _pm_radio_var, _data_clip_var, _geo_var
 
     root = tk.Tk()
     root.title(TITLE)
@@ -45,6 +47,18 @@ def generate_interface():
         _year_checkbuttons.append(tk.IntVar())
         c = Checkbutton(years_frame, text=str(cen.year), var=_year_checkbuttons[i], command=year_check_change)
         c.grid(row=0, column=i)
+
+    tk.Label(root, text="What level of geography should be displayed?").pack(fill="x", pady=10)
+
+    geo_frame = Frame(root)
+    geo_frame.pack(fill="x", pady=10)
+
+    _geo_var = tkinter.StringVar(value=GEOGRAPHY[0])
+
+    for i in range(0, len(GEOGRAPHY)):
+        geo_frame.grid_columnconfigure(i, weight=1)
+        r = Radiobutton(geo_frame, text=GEOGRAPHY[i], value=GEOGRAPHY[i], var=_geo_var)
+        r.grid(row=0, column=i)
 
     tk.Label(root, text="Select the way to process data from multiple years:").pack(fill="x", pady=10)
 
@@ -115,7 +129,7 @@ def create_plot():
             func = map_plot.FUNC_LIST[i]
             break
 
-    map_plot.plot_map(func_name, strings, cen, func, clipped = _data_clip_var.get() == DATA_CLIP[0])
+    map_plot.plot_map(func_name, strings, cen, func, clipped=_data_clip_var.get() == DATA_CLIP[0], type=_geo_var.get())
 
 
 def on_closing():

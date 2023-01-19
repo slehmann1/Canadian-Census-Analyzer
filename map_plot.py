@@ -12,13 +12,8 @@ FUNC_LIST = (lambda a: mean_difference(a), lambda a: mean_percent_change(a), lam
 ROUND_DECS = 2
 THRESHOLD_LEVELS = 30
 
-# TODO: Make dependant on type that is chosen, enable ability for CDs
-GEO_LEVEL = "CSDUID"
-GEO_NAME = "CSDNAME"
-PROP_NAME = "feature.properties.CSDUID"
 
-
-def plot_map(function_name, strings, census_data, func=None, type="csd", clipped=False):
+def plot_map(function_name, strings, census_data, func=None, type="Census Subdivisions", clipped=False):
     """
     Creates a map and displays it using folium
     :param title: The title of the plot
@@ -30,8 +25,8 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
     :param clipped: Whether or not data with the outliers clipped should be displayed
     :return:
     """
-
     cad = get_cad_file(type)
+    geo_level, geo_name, prop_name = get_property_names(type)
 
     # Create data column for every type of data
     for census in census_data:
@@ -39,18 +34,18 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
 
     # Simplify first data
     census_data[0].data_df = census_data[0].data_df.query(
-        f"{census_data[0].geocode_col} in @cad['{GEO_LEVEL}'] and @strings[0] in `{census_data[0].characteristic_col}`")
+        f"{census_data[0].geocode_col} in @cad['{geo_level}'] and @strings[0] in `{census_data[0].characteristic_col}`")
 
     if len(census_data) == 1:
         # There is only one data listed
         for index, datum in census_data[0].data_df.query(
                 f"`{census_data[0].characteristic_col}` in @strings[0]").iterrows():
             try:
-                cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], str(census_data[0].year)] = float(
+                cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[0].year)] = float(
                     datum[census_data[0].total_col])
             except (TypeError, ValueError):
                 # If there is a data quality issue, the data is given as a NAN
-                cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], str(census_data[0].year)] = np.NAN
+                cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[0].year)] = np.NAN
     else:
         # There are multiple data sources
         cad[function_name] = 0
@@ -83,21 +78,21 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
                         f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[
                                                                census_data[i].total_col]))
 
-                cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], function_name] = func(func_data)
+                cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], function_name] = func(func_data)
             except (TypeError, ValueError):
                 # If there is a data quality issue, the data is given as a NAN
-                cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], function_name] = np.NAN
+                cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], function_name] = np.NAN
 
             for i in range(0, len(census_data)):
                 try:
-                    cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], str(census_data[i].year)] = float(
+                    cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[i].year)] = float(
                         census_data[i].data_df.query(
                             f"{census_data[i].geocode_col} == @datum['{census_data[0].geocode_col}']")[
                             census_data[i].total_col])
 
                 except (TypeError, ValueError):
                     # If there is a data quality issue, the data is given as a NAN
-                    cad.loc[cad[GEO_LEVEL] == datum[census_data[0].geocode_col], str(census_data[i].year)] = np.NAN
+                    cad.loc[cad[geo_level] == datum[census_data[0].geocode_col], str(census_data[i].year)] = np.NAN
 
         print(f"End code of interest, time = {time.time() - t}")
 
@@ -111,10 +106,10 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
         else:
             column = str(census_data[0].year)
 
-        choro = gen_choropleth(cad, GEO_LEVEL, column, PROP_NAME, strings[0], census_data[0].year)
+        choro = gen_choropleth(cad, geo_level, column, prop_name, strings[0], census_data[0].year)
         choro.add_to(m)
 
-        hover_fields = [str(census_data[0].year), GEO_NAME, GEO_LEVEL]
+        hover_fields = [str(census_data[0].year), geo_name, geo_level]
 
     else:
         # Create a duplicate copy of the data with outliers removed, prevents the colour bar from being thrown off, but
@@ -126,7 +121,7 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
         else:
             column = function_name
 
-        choro = gen_choropleth(cad, GEO_LEVEL, column, PROP_NAME, function_name, function_name)
+        choro = gen_choropleth(cad, geo_level, column, prop_name, function_name, function_name)
         choro.add_to(m)
 
         columns = []
@@ -141,10 +136,10 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
 
         minimum, maximum = get_range(cad, columns)
         step_size = (maximum - minimum) / THRESHOLD_LEVELS
-        thresholds = np.arange(minimum, maximum+ step_size, step_size)
+        thresholds = np.arange(minimum, maximum + step_size, step_size)
 
         for i, column in enumerate(columns):
-            choro = gen_choropleth(cad, GEO_LEVEL, column, PROP_NAME,
+            choro = gen_choropleth(cad, geo_level, column, prop_name,
                                    census_data[i].data_df[census_data[i].characteristic_col].values[0],
                                    census_data[i].year, thresholds)
             choro.add_to(m)
@@ -155,7 +150,7 @@ def plot_map(function_name, strings, census_data, func=None, type="csd", clipped
         hover_fields = []
         for i in range(len(census_data)):
             hover_fields.append(str(census_data[i].year))
-        hover_fields.extend([function_name, GEO_NAME, GEO_LEVEL])
+        hover_fields.extend([function_name, geo_name, geo_level])
 
     hover_bubble = gen_hover_bubble(cad, hover_fields)
     m.add_child(hover_bubble)
@@ -182,18 +177,45 @@ def get_range(df, columns):
     return minimum, maximum
 
 
+def get_property_names(type):
+    """
+    Gets the property names of the cad file for a given type of census geography
+    :param type: A string representing the type of geography desired: "Census Subdivisions", "Census Divisions", or "Provinces"
+    :return: geo_level, geo_name, prop_name
+    """
+
+    if type == "Census Subdivisions":
+        geo_level = "CSDUID"
+        geo_name = "CSDNAME"
+        prop_name = "feature.properties.CSDUID"
+    elif type == "Provinces":
+        geo_level = "PRUID"
+        geo_name = "PRNAME"
+        prop_name = "feature.properties.PRUID"
+    elif type == "Census Divisions":
+        geo_level = "CDUID"
+        geo_name = "CDNAME"
+        prop_name = "feature.properties.CDUID"
+    else:
+        raise ValueError("Incorrect type provided")
+
+    return geo_level, geo_name, prop_name
+
+
 def get_cad_file(type):
     """
     Reads the correct geopandas dataframe based on the type of geography desired
-    :param type: A string representing the type of geography desired: csd or provinces
+    :param type: A string representing the type of geography desired: "Census Subdivisions", "Census Divisions", or "Provinces"
     :return: A geopandas dataframe
     """
-    if type == "csd":
+    if type == "Census Subdivisions":
         cad = gpd.read_file("mapData/simplified/Census Sub Divisions/lcsd000b21a_e.shp")
-    elif type == "provinces":
+    elif type == "Provinces":
         cad = gpd.read_file("mapData/simplified/Provinces/lpr_000b21a_e.shp")
-    else:
+    elif type == "Census Divisions":
         cad = gpd.read_file("mapData/simplified/Census Divisions/lcd_000b21a_e.shp")
+    else:
+        raise ValueError("Incorrect type provided")
     return cad
 
 
@@ -208,7 +230,7 @@ def output_map(m):
     webbrowser.open("map.html")
 
 
-def gen_choropleth(data, column_1, column_2, key_on, legend_name, name, thresholds = None):
+def gen_choropleth(data, column_1, column_2, key_on, legend_name, name, thresholds=None):
     """
     Creates a folium choropleth with the appropriate formatting
     :param data: The data to be displayed
@@ -262,7 +284,6 @@ def gen_layer_controller():
     Creates a formatted layer controller which may be added to a folium map
     :return:A Layer Control object
     """
-    # TODO: Figure out how to default select only one option
 
     # Add a layer controller and override the default template to remove the baselayer box
     lc = folium.LayerControl(collapsed=False, tiles=False)
