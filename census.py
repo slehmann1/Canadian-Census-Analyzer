@@ -1,3 +1,7 @@
+# Author: Sam Lehmann
+# Network with him at: https://www.linkedin.com/in/samuellehmann/
+# Date: 2023-01-19
+
 class Census:
     def __init__(self, year, url, filename_keep, filename_csv, filename_par, leading_spaces, characteristic_col,
                  geo_col, total_col,

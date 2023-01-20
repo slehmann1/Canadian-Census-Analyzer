@@ -1,13 +1,15 @@
+# Author: Sam Lehmann
+# Network with him at: https://www.linkedin.com/in/samuellehmann/
+# Date: 2023-01-19
+
 import os
 import pickle
 import shutil
 import time
 import urllib.request
 import zipfile
-
 import pandas as pd
 from anytree import Node
-
 import census
 import interface
 

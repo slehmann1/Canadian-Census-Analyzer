@@ -1,3 +1,7 @@
+# Author: Sam Lehmann
+# Network with him at: https://www.linkedin.com/in/samuellehmann/
+# Date: 2023-01-19
+
 import sys
 import tkinter
 import tkinter as tk
