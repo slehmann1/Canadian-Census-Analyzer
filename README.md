@@ -11,7 +11,8 @@ Create interactive choropleth maps using data from multiple years of the Canadia
   <img src="https://github.com/slehmann1/Canadian-Census-Analyzer/blob/main/Supporting%20Info/averageSizeCensFams.gif?raw=true" />
 </p>
 
-**Functionality**
+**Functionality:**
+
 When running the program for the first time it will download census data from Statistics Canada. The files it will download are large (*several GB*). Once these files are processed, a user interface will launch:
 
 <p align="center">
@@ -24,4 +25,5 @@ Plots will be output within an interactive HTML file. An example of a map output
 
 
 **Dependencies:**
+
 Written in Python with the following dependencies: Pandas, Tkinter, GeoPandas, Folium, numpy, and Anytree
